@@ -410,7 +410,7 @@ Vercel **tidak** punya runtime PHP resmi; yang dipakai adalah runtime komunitas
 | --- | --- |
 | `api/index.php` | Entry point function: mengarahkan semua path tulis Laravel ke `/tmp` sebelum boot, melayani file statis saat dijalankan lokal |
 | `api/php.ini` | `memory_limit`, `variables_order = "EGPCS"` (agar env var Vercel terbaca `env()`), opcache |
-| `vercel.json` | Runtime `vercel-php@0.7.4` (PHP 8.3), `memory` 1024, `maxDuration` 60, aturan route |
+| `vercel.json` | Runtime `vercel-php@0.8.0` (PHP 8.4), `memory` 1024, `maxDuration` 60, aturan route |
 | `.vercelignore` | Mengecualikan `/vendor` (di-install saat build), `/node_modules`, log, dll |
 
 Batasan paket Hobby yang perlu diketahui: fungsi maksimum **250 MB** (unzipped), durasi request
@@ -532,10 +532,12 @@ php artisan pbm:create-admin --name="Demo Admin" \
 
 ### Yang perlu diwaspadai
 
-1. **Versi paket PHP vs `pdo_mysql`.** Panduan Laravel memakai `php/php = "=8.3.4"`, sedangkan
-   dukungan MySQL/Postgres (`mysqli`, `pdo`) diperkenalkan pada paket yang lebih baru (blog
-   Wasmer menyebut `php/php@8.3.400`). Kalau muncul `could not find driver`, ganti versinya di
-   `wasmer.toml`.
+1. **PHP 8.4 wajib, bukan 8.3.** `composer.lock` memakai Symfony 8.1 (`php >= 8.4.1`) yang sudah
+   memakai sintaks property hook, jadi build/runtime di PHP 8.3 gagal dengan
+   `syntax error, unexpected token "{"` di `vendor/symfony/http-foundation/Request.php:117`.
+   Pastikan build image PHP-nya 8.4 atau lebih baru (paket `php/php` di `wasmer.toml` sudah
+   diarahkan ke `^8.4`). Kalau registry Wasmer hanya menyediakan 8.3, deploy lewat build Docker
+   dengan base image PHP 8.4.
 2. **`vendor/` harus ada di direktori yang dipaketkan.** Karena `[fs]` memetakan direktori
    lokal, jalankan `composer install --no-dev` sebelum `wasmer run .` / `wasmer deploy`.
    Kalau ternyata Wasmer menghormati `.gitignore` saat memaketkan sehingga `vendor` ikut
@@ -546,6 +548,44 @@ php artisan pbm:create-admin --name="Demo Admin" \
 4. **Selalu di belakang proxy** → set `TRUSTED_PROXIES=*` supaya URL dan cookie HTTPS benar.
 5. **Cold start** bisa dipercepat dengan Instaboot di `app.yaml` (mem-pre-warm request `/`), dan
    `scaling.mode: single_concurrency` disarankan untuk PHP.
+
+## Troubleshooting: build deploy gagal (PHP 8.3 lalu script Boost)
+
+Dua kegagalan build berurutan yang muncul saat deploy ke host berbasis Docker (mis. Wasmer Edge).
+
+### 1. `syntax error, unexpected token "{", expecting "," or ";"` di vendor
+
+```text
+RUN composer run-script post-update-cmd
+> @php artisan vendor:publish --tag=laravel-assets --ansi --force
+
+In Request.php line 117:
+  syntax error, unexpected token "{", expecting "," or ";"
+```
+
+Penyebabnya **versi PHP di build image**, bukan kode aplikasi: `composer.lock` memakai Symfony 8.1
+yang mensyaratkan `php >= 8.4.1` dan sudah memakai sintaks **property hook** (PHP 8.4):
+
+```php
+// vendor/symfony/http-foundation/Request.php:117
+public ParameterBag $attributes {
+    set { /* ... */ }
+}
+```
+
+PHP 8.3 tidak bisa mem-parse blok `{` itu. Perbaikannya:
+
+- Pakai PHP **8.4+** di build image **dan** runtime.
+- `composer.json` sekarang mendeklarasikan `"php": "^8.4"` (dan `composer.lock` sudah disinkronkan),
+  jadi Composer menolak lebih awal dengan pesan yang jelas alih-alih error sintaks di vendor.
+- Cek cepat: `php -v` lalu `composer check-platform-reqs`.
+
+### 2. `Please set up Boost with [php artisan boost:install] first.`
+
+`post-update-cmd` menjalankan `@php artisan boost:update`. Boost adalah tooling dev, dan di
+lingkungan build yang belum pernah menjalankan `boost:install` command itu keluar dengan kode 1 —
+build gagal walaupun aplikasinya sehat. Script-nya kini tidak fatal (`|| true`): tetap jalan kalau
+Boost sudah di-setup, dan tidak menggagalkan build kalau belum.
 
 ## Catatan environment
 

@@ -33,7 +33,7 @@ Istilah lainnya tersedia di [Glosarium](docs/00-glossary.md).
 
 | Kebutuhan | Versi/fungsi |
 |---|---|
-| PHP | 8.3 atau lebih baru; menjalankan Laravel |
+| PHP | 8.4 atau lebih baru; menjalankan Laravel |
 | Composer | 2.x; memasang dependency PHP |
 | Node.js | 22.13 atau lebih baru; menjalankan tooling frontend |
 | npm | Terpasang bersama Node.js; memasang dependency frontend |
