@@ -608,6 +608,24 @@ lingkungan build yang belum pernah menjalankan `boost:install` command itu kelua
 build gagal walaupun aplikasinya sehat. Script-nya kini tidak fatal (`|| true`): tetap jalan kalau
 Boost sudah di-setup, dan tidak menggagalkan build kalau belum.
 
+### 3. `Build used too much memory ... Reduce what the build loads at once`
+
+Builder (mis. Wasmer Edge, 1536 MB) kehabisan memori pada langkah `COPY`/export. Penyebabnya
+ukuran konteks build, dan di repo ini ada dua pemborosan besar:
+
+| Bagian | Ukuran | Keterangan |
+| --- | --- | --- |
+| `resources/assets` | 101 MB | **duplikat identik** dari `public/assets` (60 berkas sama), tidak dirujuk kode mana pun — yang disajikan aplikasi adalah `public/assets` |
+| `storage/` (log, `inertia-devtools`, `framework/cache`) | 24 MB | state runtime, dibuat ulang sendiri |
+
+`.dockerignore` mengecualikan keduanya (plus `.git`, `node_modules`, `vendor`, `docs`, marker dev)
+sehingga konteks build turun **231 MB → 107 MB**. `.env.example` sengaja **tidak** dikecualikan
+karena Dockerfile biasanya menyalinnya menjadi `.env`.
+
+Sisa beban terbesarnya adalah `public/assets` (104 MB, dan 73 MB di antaranya adalah 7 GIF diagram
+1920×1200). Kalau builder masih kehabisan memori, langkah berikutnya adalah mengompres GIF tersebut
+(animated WebP) sehingga konteks turun ke ± 40 MB — sekaligus membuat halaman jauh lebih ringan.
+
 ## Catatan environment
 
 - Ekstensi `pdo_sqlite` tidak tersedia di mesin ini, jadi `php artisan test` bawaan (SQLite in-memory) tidak bisa jalan. Dengan MySQL, 40 dari 45 test lulus; 5 test di `AnalyticsDashboardTest` gagal karena skema memakai generated column yang tidak bisa di-insert eksplisit di MySQL — masalah portabilitas test yang sudah ada sebelum perubahan ini.
