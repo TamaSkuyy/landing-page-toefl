@@ -1,0 +1,959 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Prevent fonts from blocking initial render */
+@layer base {
+    @font-face {
+        font-family: 'Instrument Sans';
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'Space Grotesk';
+        font-display: swap;
+    }
+}
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --font-sans:
+        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+
+    /* Landing page display font, used for headings via font-display. */
+    --font-display:
+        'Space Grotesk', 'Instrument Sans', ui-sans-serif, sans-serif;
+
+    /* Upgrades font-mono app-wide (currently used for data/labels on the
+       landing page and in the admin analytics tables). */
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Landing page dark tech theme (always dark, independent of the app's light/dark toggle) */
+    --color-lp-bg: var(--lp-bg);
+    --color-lp-bg-elevated: var(--lp-bg-elevated);
+    --color-lp-bg-elevated-2: var(--lp-bg-elevated-2);
+    --color-lp-border: var(--lp-border);
+    --color-lp-border-soft: var(--lp-border-soft);
+    --color-lp-text: var(--lp-text);
+    --color-lp-text-muted: var(--lp-text-muted);
+    --color-lp-text-dim: var(--lp-text-dim);
+    --color-lp-primary: var(--lp-primary);
+    --color-lp-primary-2: var(--lp-primary-2);
+    --color-lp-primary-soft: var(--lp-primary-soft);
+    --color-lp-primary-ink: var(--lp-primary-ink);
+    --color-lp-danger: var(--lp-danger);
+    --color-lp-danger-soft: var(--lp-danger-soft);
+    --color-lp-amber: var(--lp-amber);
+    --color-lp-amber-soft: var(--lp-amber-soft);
+    --color-lp-amber-ink: var(--lp-amber-ink);
+}
+
+:root {
+    --lp-bg: oklch(0.14 0.022 245);
+    --lp-bg-elevated: oklch(0.185 0.026 240);
+    --lp-bg-elevated-2: oklch(0.23 0.03 235);
+    --lp-border: oklch(0.32 0.032 232);
+    --lp-border-soft: oklch(0.26 0.028 235);
+    --lp-text: oklch(0.98 0.008 230);
+    --lp-text-muted: oklch(0.75 0.02 232);
+    --lp-text-dim: oklch(0.58 0.024 235);
+    --lp-primary: oklch(0.68 0.19 232);
+    --lp-primary-2: oklch(0.5 0.22 268);
+    --lp-primary-soft: oklch(0.29 0.09 232);
+    --lp-primary-ink: oklch(0.82 0.12 228);
+    --lp-danger: oklch(0.66 0.2 22);
+    --lp-danger-soft: oklch(0.28 0.08 22);
+    --lp-amber: oklch(0.8 0.16 78);
+    --lp-amber-soft: oklch(0.32 0.08 78);
+    --lp-amber-ink: oklch(0.85 0.14 78);
+}
+
+/* ================== Landing page atmospheric utilities ================== */
+
+/* Subtle dot-grid backdrop used by mini-audit pages */
+@utility bg-grid {
+    background-image:
+        linear-gradient(
+            to right,
+            oklch(0.7 0.15 232 / 0.05) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            to bottom,
+            oklch(0.7 0.15 232 / 0.05) 1px,
+            transparent 1px
+        );
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(
+        ellipse at center,
+        black 40%,
+        transparent 80%
+    );
+}
+
+/* Glass card surface */
+@utility glass {
+    background: linear-gradient(
+        135deg,
+        oklch(0.22 0.028 235 / 0.75),
+        oklch(0.17 0.024 240 / 0.6)
+    );
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Subtle glowing border accent */
+@utility border-glow {
+    border: 1px solid oklch(0.68 0.19 232 / 0.2);
+    box-shadow: 0 0 0 1px oklch(0.68 0.19 232 / 0.08);
+}
+
+/* Small ambient CTA glow */
+@utility glow-sm {
+    box-shadow:
+        0 0 0 1px oklch(0.68 0.19 232 / 0.3),
+        0 4px 24px -6px oklch(0.5 0.22 250 / 0.6),
+        0 0 32px -12px oklch(0.68 0.19 232 / 0.5);
+}
+
+/* Gradient text — primary accent */
+@utility text-gradient {
+    background: linear-gradient(
+        135deg,
+        oklch(0.72 0.18 228),
+        oklch(0.58 0.22 265)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* ================== Mini-audit page theme override ================== */
+/* Maps standard Tailwind CSS vars to lp-* values so all mini-audit
+   components automatically render in the dark tech color system          */
+.mini-audit-page {
+    --background: var(--lp-bg);
+    --foreground: var(--lp-text);
+    --card: var(--lp-bg-elevated);
+    --card-foreground: var(--lp-text);
+    --popover: var(--lp-bg-elevated);
+    --popover-foreground: var(--lp-text);
+    --primary: var(--lp-primary);
+    --primary-foreground: var(--lp-bg);
+    --secondary: var(--lp-bg-elevated-2);
+    --secondary-foreground: var(--lp-text);
+    --muted: var(--lp-bg-elevated);
+    --muted-foreground: var(--lp-text-muted);
+    --accent: var(--lp-bg-elevated-2);
+    --accent-foreground: var(--lp-text);
+    --destructive: var(--lp-danger);
+    --destructive-foreground: var(--lp-text);
+    --border: var(--lp-border-soft);
+    --input: var(--lp-bg-elevated);
+    --ring: var(--lp-primary);
+}
+
+@utility bg-lp-grid {
+    background-image:
+        linear-gradient(
+            to right,
+            oklch(0.7 0.15 232 / 0.06) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            to bottom,
+            oklch(0.7 0.15 232 / 0.06) 1px,
+            transparent 1px
+        );
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(
+        ellipse at center,
+        black 30%,
+        transparent 75%
+    );
+}
+
+/* Fine grain noise using layered radial dots */
+@utility bg-lp-dots {
+    background-image: radial-gradient(
+        oklch(0.8 0.15 232 / 0.08) 1px,
+        transparent 1px
+    );
+    background-size: 22px 22px;
+}
+
+/* Ambient primary glow shadow */
+@utility lp-glow {
+    box-shadow:
+        0 0 0 1px oklch(0.68 0.19 232 / 0.15),
+        0 20px 60px -20px oklch(0.5 0.22 250 / 0.55),
+        0 0 80px -30px oklch(0.68 0.19 232 / 0.45);
+}
+
+@utility lp-glow-amber {
+    box-shadow:
+        0 0 0 1px oklch(0.8 0.16 78 / 0.2),
+        0 20px 60px -20px oklch(0.75 0.16 78 / 0.35),
+        0 0 60px -25px oklch(0.8 0.16 78 / 0.4);
+}
+
+/* Glass surface */
+@utility lp-glass {
+    background: linear-gradient(
+        135deg,
+        oklch(0.24 0.03 235 / 0.7),
+        oklch(0.18 0.026 240 / 0.55)
+    );
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+/* Gradient border via padding trick */
+@utility lp-gradient-border {
+    position: relative;
+    background-clip: padding-box;
+    border: 1px solid transparent;
+}
+@utility lp-gradient-border-inner {
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        padding: 1px;
+        border-radius: inherit;
+        background: linear-gradient(
+            135deg,
+            oklch(0.68 0.19 232 / 0.55),
+            oklch(0.5 0.22 268 / 0.15) 40%,
+            oklch(0.68 0.19 232 / 0.05) 60%,
+            oklch(0.5 0.22 268 / 0.5)
+        );
+        -webkit-mask:
+            linear-gradient(#000 0 0) content-box,
+            linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }
+}
+
+/* Aurora blobs animation */
+@keyframes lp-aurora {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1);
+        opacity: 0.55;
+    }
+    50% {
+        transform: translate3d(30px, -20px, 0) scale(1.15);
+        opacity: 0.8;
+    }
+}
+@utility animate-lp-aurora {
+    animation: lp-aurora 14s ease-in-out infinite;
+}
+
+@keyframes lp-aurora-alt {
+    0%,
+    100% {
+        transform: translate3d(0, 0, 0) scale(1.05);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate3d(-30px, 25px, 0) scale(0.9);
+        opacity: 0.85;
+    }
+}
+@utility animate-lp-aurora-alt {
+    animation: lp-aurora-alt 18s ease-in-out infinite;
+}
+
+/* Slow float for decorative badges */
+@keyframes lp-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-6px);
+    }
+}
+@utility animate-lp-float {
+    animation: lp-float 5s ease-in-out infinite;
+}
+@utility animate-lp-float-alt {
+    animation: lp-float 6.5s ease-in-out infinite 0.8s;
+}
+
+/* Shimmer sweep for CTAs */
+@keyframes lp-shimmer {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(220%);
+    }
+}
+@utility animate-lp-shimmer {
+    animation: lp-shimmer 2.8s ease-in-out infinite;
+}
+
+/* Slow pulse ring */
+@keyframes lp-pulse-ring {
+    0% {
+        transform: scale(1);
+        opacity: 0.6;
+    }
+    100% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
+}
+@utility animate-lp-pulse-ring {
+    animation: lp-pulse-ring 2.2s ease-out infinite;
+}
+
+/* Bar grow for hero mini chart */
+@keyframes lp-bar-grow {
+    from {
+        transform: scaleY(0.1);
+    }
+    to {
+        transform: scaleY(1);
+    }
+}
+@utility animate-lp-bar {
+    transform-origin: bottom;
+    animation: lp-bar-grow 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Section divider — subtle radial glow */
+@utility lp-divider-glow {
+    position: relative;
+    &::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 60%;
+        height: 1px;
+        transform: translateX(-50%);
+        background: linear-gradient(
+            to right,
+            transparent,
+            oklch(0.68 0.19 232 / 0.5),
+            transparent
+        );
+    }
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.87 0 0);
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.87 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.145 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.985 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.396 0.141 25.723);
+    --destructive-foreground: oklch(0.637 0.237 25.331);
+    --border: oklch(0.269 0 0);
+    --input: oklch(0.269 0 0);
+    --ring: oklch(0.439 0 0);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.985 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(0.269 0 0);
+    --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* ================== Analytics workspace — Liquid Glass ================== */
+/* One quiet recipe, reused everywhere: a near-transparent pane, a hairline
+   edge, and a single soft bloom of light. No colour glow, no ornament.     */
+:root:has(.analytics-workspace) {
+    --background: #000000;
+    --foreground: #f2f5fa;
+    /* Repeated here so portalled surfaces (select menus, pickers, tooltips)
+       inherit the same dark glass instead of the app's default theme. */
+    --card: #0a0d14;
+    --card-foreground: #f2f5fa;
+    --popover: #0c1018;
+    --popover-foreground: #f2f5fa;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #141926;
+    --secondary-foreground: #e9eef8;
+    --muted: #12161f;
+    --muted-foreground: #a3aec2;
+    --accent: #17203a;
+    --accent-foreground: #dbeafe;
+    --destructive: #f87171;
+    --destructive-foreground: #ffe4e4;
+    --border: #1d2433;
+    --input: #1a2130;
+    --ring: #60a5fa;
+    --sidebar: #000000;
+    --sidebar-foreground: #e6ebf5;
+    --sidebar-primary: #2563eb;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #141b2b;
+    --sidebar-accent-foreground: #dbeafe;
+    --sidebar-border: #191f2c;
+    --sidebar-ring: #60a5fa;
+}
+
+[data-slot='sidebar-wrapper']:has(.analytics-workspace) {
+    background-color: #000000;
+}
+
+[data-slot='sidebar-wrapper']:has(.analytics-workspace)
+    [data-sidebar='sidebar'] {
+    border-color: rgb(255 255 255 / 0.07);
+    background: rgb(4 6 10 / 0.85);
+    box-shadow: none;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Breadcrumb bar sitting above the workspace */
+[data-slot='sidebar-inset']:has(.analytics-workspace) > header {
+    border-color: rgb(255 255 255 / 0.07);
+    background: rgb(0 0 0 / 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.analytics-workspace {
+    --background: #000000;
+    --foreground: #f2f5fa;
+    --card: #0a0d14;
+    --card-foreground: #f2f5fa;
+    --popover: #0c1018;
+    --popover-foreground: #f2f5fa;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #141926;
+    --secondary-foreground: #e9eef8;
+    --muted: #12161f;
+    --muted-foreground: #a3aec2;
+    --accent: #17203a;
+    --accent-foreground: #dbeafe;
+    --destructive: #f87171;
+    --destructive-foreground: #ffe4e4;
+    --border: #1d2433;
+    --input: #1a2130;
+    --ring: #60a5fa;
+    --chart-1: #3b82f6;
+    --chart-2: #38bdf8;
+    --chart-3: #6366f1;
+    --chart-4: #22d3ee;
+    --chart-5: #93c5fd;
+
+    position: relative;
+    isolation: isolate;
+    color-scheme: dark;
+    background-color: #000000;
+    /* Deep navy settling into black, as in the reference — nothing more. */
+    background-image: radial-gradient(
+        120% 70% at 50% -10%,
+        rgb(23 37 84 / 0.45),
+        transparent 70%
+    );
+}
+
+/* ---------------- The glass pane ---------------- */
+
+.analytics-workspace [data-slot='card'],
+.analytics-panel,
+.analytics-metric-card,
+.analytics-header {
+    position: relative;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    background-color: rgb(255 255 255 / 0.04);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.09),
+        0 8px 32px -14px rgb(0 0 0 / 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transition:
+        border-color 200ms ease,
+        background-color 200ms ease;
+}
+
+/* The single soft bloom of light across the top-left */
+.analytics-workspace [data-slot='card']::before,
+.analytics-panel::before,
+.analytics-metric-card::before,
+.analytics-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+        65% 55% at 20% 0%,
+        rgb(255 255 255 / 0.1),
+        transparent 72%
+    );
+}
+
+.analytics-workspace [data-slot='card'] > *,
+.analytics-panel > *,
+.analytics-metric-card > *,
+.analytics-header > * {
+    position: relative;
+    z-index: 1;
+}
+
+.analytics-workspace [data-slot='card'],
+.analytics-panel,
+.analytics-metric-card {
+    overflow: hidden;
+    border-radius: 1rem;
+}
+
+.analytics-workspace [data-slot='card']:hover,
+.analytics-panel:hover,
+.analytics-metric-card:hover {
+    border-color: rgb(255 255 255 / 0.16);
+    background-color: rgb(255 255 255 / 0.055);
+    /* Hold the resting shadow so hover brightens rather than lifts */
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.12),
+        0 8px 32px -14px rgb(0 0 0 / 0.6);
+}
+
+.analytics-header {
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background-color: rgb(255 255 255 / 0.02);
+    box-shadow: none;
+}
+
+/* Nested wells inside a pane sit one step quieter */
+.analytics-subpanel {
+    border-color: rgb(255 255 255 / 0.08);
+    border-radius: 0.75rem;
+    background-color: rgb(255 255 255 / 0.03);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 200ms ease;
+}
+
+.analytics-subpanel:hover {
+    border-color: rgb(255 255 255 / 0.14);
+}
+
+/* ---------------- Metric cards ---------------- */
+
+.analytics-metric-card {
+    --metric-accent: #60a5fa;
+    min-height: 9.25rem;
+}
+
+/* Component ships a hover layer; keep it as a faint lift, not a colour wash */
+.analytics-metric-glow {
+    background: radial-gradient(
+        70% 60% at 80% 0%,
+        rgb(255 255 255 / 0.05),
+        transparent 70%
+    );
+}
+
+.analytics-metric-icon {
+    color: var(--metric-accent);
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 0.7rem;
+    background: rgb(255 255 255 / 0.05);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1);
+}
+
+.analytics-metric-card p.text-2xl {
+    font-size: 1.75rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: #ffffff;
+}
+
+/* ---------------- Typography ---------------- */
+
+.analytics-workspace [data-slot='card-description'] {
+    color: #97a2b6;
+    line-height: 1.55;
+}
+
+.analytics-workspace .uppercase {
+    letter-spacing: 0.08em;
+}
+
+.analytics-workspace table,
+.analytics-workspace .font-bold,
+.analytics-workspace .font-semibold {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Tables ---------------- */
+
+.analytics-workspace table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.analytics-workspace thead tr {
+    background: rgb(255 255 255 / 0.04);
+}
+
+.analytics-workspace thead th {
+    color: #a3aec2;
+    white-space: nowrap;
+}
+
+.analytics-workspace thead th:first-child {
+    border-radius: 0.6rem 0 0 0.6rem;
+}
+
+.analytics-workspace thead th:last-child {
+    border-radius: 0 0.6rem 0.6rem 0;
+}
+
+.analytics-workspace tbody tr {
+    transition: background-color 160ms ease;
+}
+
+.analytics-workspace tbody tr:hover {
+    background-color: rgb(255 255 255 / 0.04);
+}
+
+/* ---------------- Controls ---------------- */
+
+.analytics-workspace [data-slot='button'],
+.analytics-workspace [data-slot='select-trigger'] {
+    border-radius: 0.625rem;
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease;
+}
+
+.analytics-workspace [data-slot='button'].border-input,
+.analytics-workspace [data-slot='select-trigger'] {
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.analytics-workspace [data-slot='button'].border-input:hover,
+.analytics-workspace [data-slot='select-trigger']:hover {
+    border-color: rgb(255 255 255 / 0.18);
+    background-color: rgb(255 255 255 / 0.07);
+}
+
+.analytics-workspace [data-slot='button'].bg-primary {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+:root:has(.analytics-workspace) [data-slot='select-content'] {
+    border-color: rgb(255 255 255 / 0.1);
+    border-radius: 0.75rem;
+    box-shadow: 0 16px 40px -20px rgb(0 0 0 / 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Segmented tabs rendered directly inside a card header */
+.analytics-workspace [data-slot='card-header'] > div > button {
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background-color: rgb(255 255 255 / 0.04);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+}
+
+.analytics-workspace [data-slot='card-header'] > div > button:hover {
+    border-color: rgb(255 255 255 / 0.16);
+    background-color: rgb(255 255 255 / 0.07);
+}
+
+.analytics-workspace [data-slot='card-header'] > div > button.bg-primary {
+    border-color: rgb(96 165 250 / 0.35);
+    background-color: #2563eb;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+}
+
+.analytics-workspace [data-slot='badge'] {
+    border-radius: 999px;
+    padding-inline: 0.6rem;
+}
+
+.analytics-workspace [data-slot='badge'].bg-secondary {
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: rgb(255 255 255 / 0.06);
+    color: #dbe3f2;
+}
+
+/* Winner badges sit on a light fill — ink them dark so they stay readable */
+.analytics-workspace [data-slot='badge'].bg-chart-4 {
+    color: #06161f;
+}
+
+.analytics-workspace [data-slot='checkbox'] {
+    border-color: rgb(255 255 255 / 0.2);
+    background-color: rgb(255 255 255 / 0.05);
+}
+
+.analytics-workspace *:focus-visible {
+    outline: 2px solid rgb(96 165 250 / 0.6);
+    outline-offset: 2px;
+}
+
+/* ---------------- Progress tracks ---------------- */
+
+.analytics-workspace .bg-muted {
+    background-color: rgb(255 255 255 / 0.07);
+}
+
+/* Keep the funnel ladder in one blue family instead of a rainbow */
+.analytics-workspace .from-sky-500 {
+    background-image: linear-gradient(90deg, #1e3a8a, #1e40af);
+}
+
+.analytics-workspace .from-blue-500 {
+    background-image: linear-gradient(90deg, #1e40af, #2563eb);
+}
+
+.analytics-workspace .from-violet-500 {
+    background-image: linear-gradient(90deg, #2563eb, #3b82f6);
+}
+
+.analytics-workspace .from-purple-500 {
+    background-image: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.analytics-workspace .from-fuchsia-500 {
+    background-image: linear-gradient(90deg, #60a5fa, #93c5fd);
+}
+
+.analytics-workspace .from-pink-500 {
+    background-image: linear-gradient(90deg, #93c5fd, #bfdbfe);
+}
+
+/* ---------------- Charts ---------------- */
+
+.analytics-workspace .recharts-cartesian-grid line {
+    stroke: rgb(255 255 255 / 0.07);
+}
+
+.analytics-workspace .recharts-cartesian-axis-line,
+.analytics-workspace .recharts-cartesian-axis-tick-line {
+    stroke: rgb(255 255 255 / 0.1);
+}
+
+.analytics-workspace .recharts-text {
+    fill: #97a2b6;
+}
+
+.analytics-workspace .recharts-legend-item-text {
+    color: #c2cbdb !important;
+}
+
+.analytics-workspace .recharts-default-legend {
+    color: var(--muted-foreground);
+}
+
+.analytics-workspace .recharts-default-tooltip {
+    border-radius: 0.6rem !important;
+    box-shadow: 0 16px 36px -20px rgb(0 0 0 / 0.8);
+}
+
+.analytics-workspace .recharts-tooltip-cursor {
+    fill: rgb(255 255 255 / 0.04);
+}
+
+/* ---------------- Scrollbars ---------------- */
+
+.analytics-workspace ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+
+.analytics-workspace ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.analytics-workspace ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.16);
+    background-clip: padding-box;
+}
+
+.analytics-workspace ::-webkit-scrollbar-thumb:hover {
+    background: rgb(255 255 255 / 0.28);
+    background-clip: padding-box;
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+/* ================== Welcome page animations ================== */
+@keyframes marquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+@utility animate-marquee {
+    animation: marquee 25s linear infinite;
+}
+
+@keyframes blob {
+    0% {
+        transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+        transform: translate(0px, 0px) scale(1);
+    }
+}
+@utility animate-blob {
+    animation: blob 7s infinite;
+}
+@utility animation-delay-2000 {
+    animation-delay: 2s;
+}
+
+@keyframes bounce-slow {
+    0%,
+    100% {
+        transform: translateY(-5%);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+@utility animate-bounce-slow {
+    animation: bounce-slow 2s infinite;
+}
