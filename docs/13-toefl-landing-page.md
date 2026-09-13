@@ -251,6 +251,302 @@ Catatan: `loading="lazy"` sengaja **tidak** dipasang pada 6 gambar hero
 (`Logo-Fullbright.webp`, `People 1–3.webp`, `hero-consultant.png`, `pasted-*.png`) supaya
 LCP tetap cepat.
 
+## Troubleshooting: halaman "mati" beberapa detik di mode dev (Vite masih dingin)
+
+Gejala: halaman kadang tampil kosong/putih atau tampil tapi semua tombol diam, lalu normal
+lagi setelah reload. Di konsol browser muncul request yang gagal untuk
+`http://[::1]:5173/resources/js/app.tsx`, `/resources/js/pages/demo/ctwa.tsx`, dan kadang
+`/media/testimoni iyha.mp4`.
+
+Penyebabnya bukan kode halaman, tapi **waktu kompilasi Vite saat cache transform masih dingin**
+(diukur di mesin ini, sekali jalan setelah Vite restart):
+
+| Permintaan | Waktu (cold) |
+| --- | --- |
+| `/@vite/client` | 0,26 s |
+| `/resources/js/app.tsx` | **2,0 s** |
+| `/resources/js/pages/demo/ctwa.tsx` | **9,9 s** (berkas 1,1 MB / 5.243 baris) |
+
+Selama jendela itu React belum mount sehingga seluruh handler belum terpasang. Kalau halaman
+di-reload/di-klik sebelum kompilasi selesai, request yang sedang jalan dibatalkan dan halaman
+tetap mati (inilah yang terekam sebagai "RESOURCE-GAGAL SCRIPT" di log browser).
+
+Cara paling andal untuk memverifikasi (tanpa Vite sama sekali):
+
+```bash
+composer dev          # untuk pengembangan (HMR), ATAU
+npm run build && php artisan serve    # untuk verifikasi: tanpa Vite, tanpa proxy
+```
+
+Dengan build assets, React mount **~0,5 detik** (terukur) dan tinggi halaman tetap 18076 px.
+`AppServiceProvider` otomatis memakai build assets kalau `public/hot` hilang/kosong atau port
+Vite tidak bisa dihubungi, jadi mematikan Vite tidak membuat halaman mati.
+
+Sejak perubahan ini Vite juga di-bind ke `127.0.0.1` (bukan `::1`) lewat `server.host` di
+`vite.config.ts`, sehingga `public/hot` berisi `http://127.0.0.1:5173` — bukan origin
+IPv6-literal yang oleh sebagian browser/ekstensi diperlakukan sebagai pihak ketiga tidak
+tepercaya.
+
+## Jebakan Blade: string `@vite` di dalam `<script>` = error 500
+
+Blade memproses direktif **di mana saja**, termasuk di dalam `<script>`. Menuliskan string
+`'/@vite/client'` di JavaScript membuat Blade mengompilasinya sebagai direktif `@vite` tanpa
+argumen, dan halaman langsung gagal dengan:
+
+```
+ArgumentCountError: Too few arguments to function Illuminate\Foundation\Vite::__invoke(), 0 passed
+```
+
+Solusinya bungkus skrip dengan `@verbatim ... @endverbatim` (atau pecah stringnya). Berlaku
+umum untuk setiap `@kata` yang muncul di dalam JS/CSS inline, bukan hanya `@vite`.
+
+## Bonus: integrasi analytics (status: tersambung dan terverifikasi)
+
+Landing page memakai sistem analytics yang sudah ada di boilerplate, tanpa mengubah kontrak
+event. Yang dipasang:
+
+| Bagian | Jumlah | Aturan di `docs/03-frontend-wiring.md` |
+| --- | --- | --- |
+| `TrackedCTA` | 38 | semua CTA memakai wrapper resmi |
+| `<a>` biasa untuk CTA | 0 | tidak ada CTA conversion yang lolos tracking |
+| `<section id="...">` | 18 | id unik & stabil untuk section view |
+| `TrackedForm` | 0 | mode CTWA tidak punya form lead (memang tidak diperlukan) |
+
+Zone yang dipakai: `pricing`, `midpage`, `footer`, `floating`, `nav`, `hero`, `faq`, `sticky`.
+Action: `scroll` (18), `whatsapp` (11), `link` (5), `external_checkout` (4).
+
+Event yang benar-benar masuk database (bukan hanya terpasang), 915 event dari 158 sesi:
+
+| Event | Jumlah | Sumber |
+| --- | --- | --- |
+| `visit` | 246 | otomatis |
+| `section_view` | 244 | otomatis |
+| `scroll` (25/50/75/90) | 161 | otomatis |
+| `engagement` | 113 | otomatis (threshold 15 s) |
+| `intent` | 83 | `TrackedCTA` action `scroll`/`link` |
+| `whatsapp_lead` | 50 | `TrackedCTA` action `whatsapp` (termasuk bubble melayang) |
+| `direct_checkout` | 18 | `TrackedCTA` action `external_checkout` |
+
+Uji end-to-end terakhir (klik CTA nyata, lalu diperiksa di database) menghasilkan baris berurutan
+`visit` → `section_view hero` → `whatsapp_lead (pricing/whatsapp)` → `scroll 25/50/75` →
+`section_view pricing` → `intent (sticky/scroll)` → `whatsapp_lead` — lengkap dengan
+`landing_source`, device, browser, OS, durasi, dan max scroll di `analytics_sessions`.
+Dashboard `/admin` menampilkan funnel Visit → Engagement → Intent → Whatsapp Lead/Direct Checkout
+beserta Lead CR dan Referral Sources tanpa error konsol.
+
+Catatan:
+
+1. **UTM untuk CTWA sudah ditambahkan.** Bawaan boilerplate hanya meneruskan `utm_*` pada mode
+   FORM (`TrackedForm` membacanya dari URL saat submit), sedangkan tracker browser hanya mengirim
+   `landing_source` — sehingga di CTWA kolom `utm_*` selalu kosong. Sekarang
+   `resources/js/analytics/tracker.ts` menyimpan `utm_source`, `utm_medium`, `utm_campaign`,
+   `utm_content`, dan `utm_term` dari URL kunjungan pertama ke `sessionStorage`, lalu
+   menyertakannya di `event_data` setiap event. Tidak ada perubahan backend karena
+   `TrackingService` memang sudah membaca `utm_*` dari `event_data`.
+
+   Bukti (buka `/?utm_source=briefing-bonus&utm_medium=qa&utm_campaign=cek-analytics&utm_content=slot-a&utm_term=toefl-itp`
+   lalu klik CTA WhatsApp) — semua event ikut membawa atribusi, termasuk outcome-nya:
+
+   | id | event_type | cta_zone | cta_action | utm_source | utm_medium | utm_campaign | utm_content | utm_term |
+   | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+   | 916 | visit | | | briefing-bonus | qa | cek-analytics | slot-a | toefl-itp |
+   | 922 | whatsapp_lead | pricing | whatsapp | briefing-bonus | qa | cek-analytics | slot-a | toefl-itp |
+
+   Kunjungan tanpa UTM tidak mengunci atribusi kosong, jadi URL campaign berikutnya tetap terekam.
+
+2. **Meta Pixel/CAPI belum aktif** karena `META_PIXEL_ID` dan `META_ACCESS_TOKEN` masih kosong di
+   `.env`. Rangkaiannya (`MetaEventMapper`, `META_CAPI_ENABLED`, tabel `meta_capi_logs`) sudah
+   tersedia; cukup mengisi kredensialnya.
+
+### Akun admin untuk penilaian
+
+```
+URL      : /admin  (atau /login)
+Email    : demo@fullbright.test
+Password : Demo-Fullbright-2026
+Role     : admin
+```
+
+Akun ini dibuat khusus untuk penilaian (bukan akun pribadi) dan sudah diuji: login berhasil
+diarahkan ke `/admin`, dashboard menampilkan Total Visits, Engagement Rate, Lead CR, funnel
+Visit → Engagement → Intent → Whatsapp Lead/Direct Checkout, Referral Sources, dan Key Insights
+tanpa error konsol. `GET /admin` tanpa login mengembalikan `302` ke halaman login.
+Ganti password akun ini (atau hapus akunnya) setelah proses penilaian selesai.
+
+## Bug: HTML landing yang di-cache membawa token CSRF milik sesi lain (event ditolak 419)
+
+Gejala: di production, hanya pengunjung pertama yang event analytics-nya tercatat. Pengunjung
+berikutnya membuka halaman dengan normal (200) tetapi semua `POST /analytics/track` dan
+`/analytics/heartbeat` gagal `419 CSRF token mismatch`, sehingga dashboard tampak kosong
+walaupun trafiknya ada.
+
+Penyebabnya kombinasi dua hal:
+
+1. `CacheLandingPage` menyimpan **HTML utuh** halaman landing selama 7 hari di cache (aktif
+   saat `public/hot` tidak ada, yaitu di production).
+2. HTML itu memuat `<meta name="csrf-token">` yang **terikat ke session** pembuat cache,
+   sedangkan tracker browser (`resources/js/analytics/queue.ts`) mengambil token dari meta
+   tersebut. Pengunjung kedua dan seterusnya jadi mengirim token milik session pertama.
+
+Dibuktikan dengan dua sesi berbeda (cookie berbeda):
+
+```bash
+# sesi A: cache miss → merender & menyimpan; sesi B: cache hit
+# sebelum perbaikan: token A == token B, lalu event dari sesi B → 419
+# sesudah perbaikan: token B milik sesinya sendiri, event → {"accepted":1} 201
+```
+
+Perbaikannya di `CacheLandingPage`: saat melayani dari cache, token CSRF di HTML diganti
+dengan token session yang sedang dilayani (`freshCsrfToken()`), sehingga sisa HTML tetap
+tersaji dari cache tanpa mengorbankan keamanan CSRF.
+
+## Deployment Vercel (opsional, gratis)
+
+Vercel **tidak** punya runtime PHP resmi; yang dipakai adalah runtime komunitas
+[`vercel-community/php`](https://github.com/vercel-community/php) — sudah dirawat, mendukung PHP
+7.4–8.5, dan **menjalankan `composer install` sendiri saat build**. Berkas yang disiapkan di repo:
+
+| Berkas | Fungsi |
+| --- | --- |
+| `api/index.php` | Entry point function: mengarahkan semua path tulis Laravel ke `/tmp` sebelum boot, melayani file statis saat dijalankan lokal |
+| `api/php.ini` | `memory_limit`, `variables_order = "EGPCS"` (agar env var Vercel terbaca `env()`), opcache |
+| `vercel.json` | Runtime `vercel-php@0.7.4` (PHP 8.3), `memory` 1024, `maxDuration` 60, aturan route |
+| `.vercelignore` | Mengecualikan `/vendor` (di-install saat build), `/node_modules`, log, dll |
+
+Batasan paket Hobby yang perlu diketahui: fungsi maksimum **250 MB** (unzipped), durasi request
+**60 detik**, `/tmp` **hilang** setiap container baru, dan **tidak ada cron**. Bawaan boilerplate
+sudah cocok dengan itu (vendor tanpa dev ±56 MB + aset 101 MB ⇒ ±172 MB).
+
+### Langkah
+
+1. **Commit aset build.** `/public/build` sengaja di-unignore di `.gitignore` karena runtime ini
+   hanya bisa menyajikan aset sebagai file statis kalau berkasnya ada di repository. Setiap kali
+   frontend berubah: `npm run build` lalu commit `public/build`.
+2. **Import repo** di Vercel (framework preset: *Other*), lalu set environment variable:
+   ```dotenv
+   APP_NAME="TOEFL ITP Full Bright Indonesia"
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=base64:...            # php artisan key:generate --show
+   APP_URL=https://<project>.vercel.app
+   LOG_CHANNEL=stderr
+   SESSION_DRIVER=database
+   CACHE_STORE=database
+   QUEUE_CONNECTION=sync
+   INERTIA_SSR_ENABLED=false     # Vercel tidak menjalankan server Node SSR
+   TRUSTED_PROXIES=*             # Vercel berada di belakang proxy
+   PROJECT_MODE=ctwa
+   PAYMENT_MODE=none
+   ANALYTICS_ENABLED=true
+   CLIENT_ID=fullbright-toefl
+   WHATSAPP_NUMBER=6285255499299
+   DB_CONNECTION=mysql
+   DB_HOST=... DB_PORT=... DB_DATABASE=... DB_USERNAME=... DB_PASSWORD=...
+   MYSQL_ATTR_SSL_CA=/var/task/certs/ca.pem   # kalau providernya mewajibkan TLS
+   ```
+   `config/database.php` sudah mendukung `MYSQL_ATTR_SSL_CA`, jadi MySQL gratis yang mewajibkan
+   TLS (mis. Aiven free 1 GB atau TiDB Cloud Serverless 5 GB) bisa dipakai — cukup commit berkas
+   CA-nya. **PostgreSQL tidak disarankan**: `AnalyticsMetricsService` memakai `DATE(created_at)`
+   yang bukan fungsi di Postgres.
+3. **Jalankan migrasi dan buat admin** dari komputer lokal dengan `DB_*` diarahkan ke database
+   production (Vercel Hobby tidak memberi shell):
+   ```bash
+   php artisan migrate --force
+   php artisan pbm:create-admin --name="Demo Admin" \
+     --email=demo@fullbright.test --password="Demo-Fullbright-2026"
+   ```
+4. **Verifikasi setelah deploy**: `/` tampil utuh dan bisa diklik, `/build/assets/app-*.js`
+   berstatus 200 dengan `content-type: application/javascript`, video testimoni jalan
+   (range request), `/admin` menampilkan funnel, dan event baru muncul saat CTA diklik.
+
+Catatan: `routes` di `vercel.json` sengaja menangani **dua konvensi** static Vercel
+(`handle: filesystem` lebih dulu, lalu rewrite ke `/public/$1`), karena Vercel bisa menyajikan
+`public/` sebagai root statis atau menyimpannya di bawah `/public/`. `/index.php` dan
+`/api/*.php` diblokir agar source code tidak pernah tersaji sebagai teks.
+
+Uji lokal meniru Vercel (`php -S 127.0.0.1:8099 -t public api/index.php` dengan
+`SESSION_DRIVER=database CACHE_STORE=database INERTIA_SSR_ENABLED=false`): React mount **400 ms**,
+CSS/JS/gambar tersaji dengan content-type benar, tanpa error konsol, dan event analytics beserta
+UTM benar-benar tercatat ke database.
+
+## Deployment Wasmer Edge (opsional, gratis)
+
+Wasmer Edge **mendukung Laravel secara resmi** ([panduan Laravel](https://docs.wasmer.io/edge/guides/laravel))
+dan PHP-nya berjalan di WebAssembly dengan database eksternal atau database terkelola Wasmer.
+Berkas yang disiapkan di repo:
+
+| Berkas | Fungsi |
+| --- | --- |
+| `wasmer.toml` | Paket `php/php` (WASI), mapping `[fs] "/app/" = "."`, perintah `php -t /app/public -S localhost:8080` |
+| `wasmer/php.ini` | `variables_order="EGPCS"` (agar secrets terbaca `env()`), opcache, `auto_prepend_file` |
+| `wasmer/prepend.php` | Mengarahkan path tulis Laravel ke `/tmp` + log ke `stderr` + session/cache ke database |
+
+Catatan penting: `[fs] "/app/" = "."` memetakan **direktori proyek apa adanya, bukan dari git**.
+Jadi `vendor/` dan `public/build/` ikut terkirim walaupun keduanya ada di `.gitignore` —
+pastikan keduanya sudah dibangun di lokal sebelum deploy.
+
+### Langkah
+
+```bash
+# 1. Siapkan isi direktori yang akan dipaketkan
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+
+# 2. Uji lokal lewat runtime Wasmer (belum deploy) → http://localhost:8080
+wasmer run .
+
+# 3. Deploy
+wasmer deploy
+```
+
+Secrets/environment (setelah app dibuat, lewat CLI):
+
+```bash
+wasmer app secrets create APP_KEY "$(php artisan key:generate --show)"
+wasmer app secrets create APP_ENV production
+wasmer app secrets create APP_DEBUG false
+wasmer app secrets create APP_URL https://<app>.wasmer.app
+wasmer app secrets create PROJECT_MODE ctwa
+wasmer app secrets create PAYMENT_MODE none
+wasmer app secrets create WHATSAPP_NUMBER 6285255499299
+wasmer app secrets create ANALYTICS_ENABLED true
+wasmer app secrets create CLIENT_ID fullbright-toefl
+wasmer app secrets create INERTIA_SSR_ENABLED false
+wasmer app secrets create TRUSTED_PROXIES '*'
+wasmer app secrets create DB_CONNECTION mysql
+wasmer app secrets create DB_HOST ... DB_PORT ... DB_DATABASE ... DB_USERNAME ... DB_PASSWORD ...
+```
+
+Database: Wasmer Edge menyediakan database terkelola (`wasmer app database create`,
+`wasmer app database list --with-password`), atau pakai MySQL gratis eksternal
+(TiDB Cloud / PlanetScale). **Hindari Postgres** karena `AnalyticsMetricsService` memakai
+`DATE(created_at)` yang bukan fungsi di Postgres.
+
+Migrasi dan akun admin dijalankan dari lokal dengan `DB_*` diarahkan ke database tersebut:
+
+```bash
+php artisan migrate --force
+php artisan pbm:create-admin --name="Demo Admin" \
+  --email=demo@fullbright.test --password="Demo-Fullbright-2026"
+```
+
+### Yang perlu diwaspadai
+
+1. **Versi paket PHP vs `pdo_mysql`.** Panduan Laravel memakai `php/php = "=8.3.4"`, sedangkan
+   dukungan MySQL/Postgres (`mysqli`, `pdo`) diperkenalkan pada paket yang lebih baru (blog
+   Wasmer menyebut `php/php@8.3.400`). Kalau muncul `could not find driver`, ganti versinya di
+   `wasmer.toml`.
+2. **`vendor/` harus ada di direktori yang dipaketkan.** Karena `[fs]` memetakan direktori
+   lokal, jalankan `composer install --no-dev` sebelum `wasmer run .` / `wasmer deploy`.
+   Kalau ternyata Wasmer menghormati `.gitignore` saat memaketkan sehingga `vendor` ikut
+   terbuang, solusinya satu baris: hapus `/vendor` dari `.gitignore` (atau commit `vendor/`).
+   Gejalanya langsung ketahuan lewat `wasmer run .` sebelum deploy.
+3. **Filesystem tidak persisten.** `wasmer/prepend.php` sudah menanganinya (view ke `/tmp`, log
+   ke `stderr`, session & cache ke database), jadi tidak ada penulisan ke direktori aplikasi.
+4. **Selalu di belakang proxy** → set `TRUSTED_PROXIES=*` supaya URL dan cookie HTTPS benar.
+5. **Cold start** bisa dipercepat dengan Instaboot di `app.yaml` (mem-pre-warm request `/`), dan
+   `scaling.mode: single_concurrency` disarankan untuk PHP.
+
 ## Catatan environment
 
 - Ekstensi `pdo_sqlite` tidak tersedia di mesin ini, jadi `php artisan test` bawaan (SQLite in-memory) tidak bisa jalan. Dengan MySQL, 40 dari 45 test lulus; 5 test di `AnalyticsDashboardTest` gagal karena skema memakai generated column yang tidak bisa di-insert eksplisit di MySQL — masalah portabilitas test yang sudah ada sebelum perubahan ini.

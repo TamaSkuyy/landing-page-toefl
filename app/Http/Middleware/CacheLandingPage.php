@@ -36,7 +36,7 @@ class CacheLandingPage
             /** @var string $html */
             $html = Cache::get($cacheKey);
 
-            return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+            return response(self::freshCsrfToken($html), 200, ['Content-Type' => 'text/html; charset=UTF-8']);
         }
 
         /** @var Response $response */
@@ -47,6 +47,24 @@ class CacheLandingPage
         }
 
         return $response;
+    }
+
+    /**
+     * Ganti token CSRF di HTML yang diambil dari cache dengan token sesi yang sedang dilayani.
+     *
+     * Token CSRF terikat ke session, sedangkan HTML landing dipakai bersama banyak session.
+     * Tanpa ini, pengunjung kedua dan seterusnya menerima token milik session pertama sehingga
+     * semua request `/analytics/track` (dan `/analytics/heartbeat`) ditolak 419 — dashboard
+     * analytics jadi kosong walaupun trafiknya ada.
+     */
+    private static function freshCsrfToken(string $html): string
+    {
+        return preg_replace(
+            '/<meta name="csrf-token" content="[^"]*">/',
+            '<meta name="csrf-token" content="'.e(csrf_token()).'">',
+            $html,
+            1,
+        ) ?? $html;
     }
 
     private static function manifestVersion(): string

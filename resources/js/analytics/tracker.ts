@@ -6,6 +6,59 @@ import type { EventData, QueuedEvent } from '@/types/analytics';
 const queue = new AnalyticsQueue();
 let maximumScrollDepth = 0;
 
+const ATTRIBUTION_KEY = 'pbm_attribution';
+const UTM_KEYS = [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+] as const;
+
+type Attribution = Partial<Record<(typeof UTM_KEYS)[number], string>>;
+
+/**
+ * Atribusi campaign (UTM) untuk sesi ini.
+ *
+ * Diambil dari URL pada kunjungan pertama lalu disimpan di sessionStorage supaya event
+ * berikutnya — termasuk `whatsapp_lead` dan `direct_checkout` pada mode CTWA — tetap membawa
+ * atribusi yang sama meski halaman sudah berpindah anchor. Sisi server sudah membaca `utm_*`
+ * dari `event_data` (lihat `TrackingService`), jadi tidak ada perubahan backend.
+ */
+export function attribution(): Attribution {
+    if (typeof window === 'undefined') {
+        return {};
+    }
+
+    const stored = window.sessionStorage.getItem(ATTRIBUTION_KEY);
+
+    if (stored) {
+        try {
+            return JSON.parse(stored) as Attribution;
+        } catch {
+            /* nilai rusak — ambil ulang dari URL di bawah */
+        }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const found: Attribution = {};
+
+    for (const key of UTM_KEYS) {
+        const value = params.get(key)?.trim();
+
+        if (value) {
+            found[key] = value.slice(0, 255);
+        }
+    }
+
+    // Kunjungan tanpa UTM tidak mengunci atribusi kosong; URL berikutnya masih bisa mengisi.
+    if (Object.keys(found).length > 0) {
+        window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(found));
+    }
+
+    return found;
+}
+
 function eventId(): string {
     return (
         window.crypto?.randomUUID?.() ??
@@ -39,6 +92,7 @@ function makePayload(eventType: EventType, data: EventData): QueuedEvent {
     return {
         event_type: eventType,
         event_data: {
+            ...attribution(),
             ...data,
             event_id: data.event_id ?? pageViewId ?? eventId(),
             landing_source: data.landing_source ?? landingSource(),

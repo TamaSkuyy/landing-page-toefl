@@ -33,6 +33,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => AdminMiddleware::class,
         ]);
+
+        /*
+         * Di belakang proxy (Vercel, load balancer, Cloudflare Tunnel) Laravel perlu tahu
+         * bahwa request aslinya HTTPS supaya URL dan cookie yang dihasilkan benar. Opt-in
+         * lewat environment agar development lokal tetap tidak mempercayai header
+         * X-Forwarded-* dari mana pun. Contoh untuk Vercel: TRUSTED_PROXIES=*
+         */
+        $proxies = env('TRUSTED_PROXIES');
+
+        if (is_string($proxies) && $proxies !== '') {
+            $middleware->trustProxies(
+                at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)),
+            );
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

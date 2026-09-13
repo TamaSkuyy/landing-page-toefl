@@ -1,0 +1,35 @@
+# Deployment Laravel ke Wasmer Edge.
+# Panduan resmi: https://docs.wasmer.io/edge/guides/laravel
+#
+# Alur singkat:
+#     composer install --no-dev --optimize-autoloader
+#     npm ci && npm run build
+#     wasmer run .        # uji lokal lewat runtime Wasmer → http://localhost:8080
+#     wasmer deploy
+#
+# PENTING — `[fs] "/app/" = "."` memetakan SELURUH direktori proyek apa adanya, bukan dari
+# git. Jadi `vendor/` dan `public/build/` ikut terkirim meski keduanya ada di .gitignore;
+# pastikan keduanya sudah dibangun di lokal sebelum deploy.
+#
+# Versi PHP: panduan Laravel memakai "=8.3.4" (cocok dengan syarat composer.json `php: ^8.3`).
+# Dukungan MySQL/Postgres lewat `mysqli` + `pdo` ada di paket yang lebih baru — blog Wasmer
+# menyebut `php/php@8.3.400`. Kalau muncul error "could not find driver", ganti versinya.
+
+[dependencies]
+"php/php" = "=8.3.4"
+
+[fs]
+# Direktori aplikasi (docroot Laravel ada di /app/public).
+"/app/" = "."
+# Konfigurasi PHP (php.ini + prepend.php), dipakai lewat PHPRC di bawah.
+"/wasmer" = "wasmer"
+
+[[command]]
+name = "run"
+module = "php/php:php"
+runner = "wasi"
+
+[command.annotations.wasi]
+# Ekuivalen dengan: php -t /app/public -S localhost:8080
+main-args = ["-t", "/app/public", "-S", "localhost:8080"]
+env = ["PHPRC=/wasmer/"]

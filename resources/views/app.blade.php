@@ -61,6 +61,41 @@
         })();
     </script>
 
+    @if (file_exists(public_path('hot')))
+        {{-- Pemulihan otomatis mode dev: kalau modul dari Vite dev server gagal dimuat —
+             misalnya server baru restart sehingga cache transformnya masih dingin, atau
+             halaman di-reload sebelum kompilasi selesai — muat ulang sekali supaya halaman
+             tidak berakhir sebagai halaman tampil-tapi-mati (semua handler belum terpasang).
+             Dibungkus @verbatim supaya tidak ada string di dalam JS yang dikompilasi Blade. --}}
+        @verbatim
+        <script>
+            (() => {
+                window.addEventListener('error', (e) => {
+                    const el = e.target || {};
+                    if (el.tagName !== 'SCRIPT') return;
+
+                    const src = String(el.src || '');
+                    // Hanya modul dari dev server (origin-nya beda dari halaman ini).
+                    if (!src || src.startsWith(location.origin) || sessionStorage.getItem('vite-reload-tried')) return;
+
+                    sessionStorage.setItem('vite-reload-tried', '1');
+                    setTimeout(() => location.reload(), 700);
+                }, true);
+
+                // Setelah React benar-benar mount, izinkan percobaan pemulihan berikutnya.
+                const timer = setInterval(() => {
+                    const app = document.querySelector('#app');
+                    const mounted = !!app && Object.keys(app).some((k) => k.startsWith('__reactContainer') || k.startsWith('__reactFiber'));
+                    if (mounted) {
+                        sessionStorage.removeItem('vite-reload-tried');
+                        clearInterval(timer);
+                    }
+                }, 1000);
+            })();
+        </script>
+        @endverbatim
+    @endif
+
     @fonts
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])

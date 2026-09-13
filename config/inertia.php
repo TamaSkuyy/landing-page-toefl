@@ -16,8 +16,11 @@ return [
     */
 
     'ssr' => [
-        'enabled' => true,
-        'url' => 'http://127.0.0.1:13714',
+        // Bisa dimatikan lewat environment. Di Vercel tidak ada server Node SSR, jadi set
+        // INERTIA_SSR_ENABLED=false — Inertia lalu merender di sisi klien dan halamannya
+        // tetap sama (hanya kehilangan HTML pra-render pada paint pertama).
+        'enabled' => (bool) env('INERTIA_SSR_ENABLED', true),
+        'url' => env('INERTIA_SSR_URL', 'http://127.0.0.1:13714'),
         // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
 
     ],

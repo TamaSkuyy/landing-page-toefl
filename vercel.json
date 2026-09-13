@@ -1,0 +1,21 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "functions": {
+        "api/index.php": {
+            "runtime": "vercel-php@0.7.4",
+            "memory": 1024,
+            "maxDuration": 60,
+            "excludeFiles": "{vendor/phpunit/**,vendor/laravel/pint/**,vendor/laravel/boost/**,vendor/laravel/sail/**,vendor/pestphp/**,vendor/sebastian/**,vendor/nunomaduro/**,vendor/phpstan/**,vendor/fakerphp/**,vendor/mockery/**,vendor/hamcrest/**,vendor/phar-io/**,vendor/myclabs/**,vendor/theseer/**,vendor/ta-tikoma/**,tests/**,storage/logs/**,storage/inertia-devtools/**,.github/**,.git/**}"
+        }
+    },
+    "routes": [
+        { "src": "/index\\.php", "status": 404 },
+        { "src": "/api/(.*)\\.php", "status": 404 },
+
+        { "handle": "filesystem" },
+
+        { "src": "/((?:assets|build|fonts|storage)/.*)", "dest": "/public/$1" },
+
+        { "src": "/(.*)", "dest": "/api/index.php" }
+    ]
+}

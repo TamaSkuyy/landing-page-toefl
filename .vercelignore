@@ -1,0 +1,27 @@
+# Berkas yang tidak perlu dikirim ke Vercel.
+#
+# `/vendor` sengaja dikecualikan: runtime vercel-php menjalankan `composer install` sendiri
+# pada fase build, jadi mengunggahnya hanya memperbesar deployment.
+#
+# PENTING: `public/build` harus tetap ikut (jangan masukkan ke sini). Aset hasil `npm run build`
+# hanya bisa dilayani sebagai file statis kalau berkasnya ada di repository — lihat catatan di
+# docs/13-toefl-landing-page.md.
+
+/vendor
+/node_modules
+/.git
+/.github
+/.idea
+/.vscode
+/.zed
+/tests
+/storage/logs
+/storage/inertia-devtools
+/storage/framework
+/storage/pail
+/public/hot
+/public/storage
+/.env
+/.env.*
+!/api/php.ini
+*.log

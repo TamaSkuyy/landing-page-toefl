@@ -44,9 +44,14 @@ export default defineConfig(({ mode }) => {
             }),
         ],
         server: {
+            // Bind ke IPv4 secara eksplisit. Tanpa ini Node me-resolve "localhost" ke ::1
+            // sehingga public/hot berisi http://[::1]:5173 — origin IPv6-literal yang oleh
+            // sebagian browser/ekstensi diperlakukan sebagai pihak ketiga tidak tepercaya
+            // (pernah muncul sebagai CORS error dan request modul yang gagal dimuat).
+            host: '127.0.0.1',
             // public/assets/** is served by Laravel, not by Vite. Without this proxy,
             // url(/assets/...) inside Vite-served CSS resolves against the dev server
-            // origin (http://[::1]:5173/assets/...) and 404s.
+            // origin (http://127.0.0.1:5173/assets/...) and 404s.
             proxy: {
                 '/assets': { target: appUrl, changeOrigin: true },
             },
