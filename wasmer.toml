@@ -11,14 +11,12 @@
 # git. Jadi `vendor/` dan `public/build/` ikut terkirim meski keduanya ada di .gitignore;
 # pastikan keduanya sudah dibangun di lokal sebelum deploy.
 #
-# PHP 8.4 WAJIB. `composer.lock` memakai Symfony 8.1 (butuh `php >= 8.4.1`) yang sudah memakai
-# sintaks property hook; di PHP 8.3 build gagal dengan
-#   "syntax error, unexpected token "{", expecting "," or ";""
-# di vendor/symfony/http-foundation/Request.php:117. Kalau versi 8.4 tidak tersedia di registry
-# Wasmer, deploy lewat build Docker dengan base image PHP 8.4 sebagai gantinya.
+# Versi paket PHP mengikuti panduan resmi Wasmer (`php/php = "=8.3.4"`).
+# Aplikasi ini kompatibel PHP 8.3 karena `composer.json` memakai `config.platform.php = 8.3.0`
+# sehingga `composer.lock` dikunci ke Symfony 7.4 (bukan Symfony 8 yang butuh PHP >= 8.4.1).
 
 [dependencies]
-"php/php" = "^8.4"
+"php/php" = "=8.3.4"
 
 [fs]
 # Direktori aplikasi (docroot Laravel ada di /app/public).

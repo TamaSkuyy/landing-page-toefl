@@ -410,7 +410,7 @@ Vercel **tidak** punya runtime PHP resmi; yang dipakai adalah runtime komunitas
 | --- | --- |
 | `api/index.php` | Entry point function: mengarahkan semua path tulis Laravel ke `/tmp` sebelum boot, melayani file statis saat dijalankan lokal |
 | `api/php.ini` | `memory_limit`, `variables_order = "EGPCS"` (agar env var Vercel terbaca `env()`), opcache |
-| `vercel.json` | Runtime `vercel-php@0.8.0` (PHP 8.4), `memory` 1024, `maxDuration` 60, aturan route |
+| `vercel.json` | Runtime `vercel-php@0.7.4` (PHP 8.3), `memory` 1024, `maxDuration` 60, aturan route |
 | `.vercelignore` | Mengecualikan `/vendor` (di-install saat build), `/node_modules`, log, dll |
 
 Batasan paket Hobby yang perlu diketahui: fungsi maksimum **250 MB** (unzipped), durasi request
@@ -532,12 +532,11 @@ php artisan pbm:create-admin --name="Demo Admin" \
 
 ### Yang perlu diwaspadai
 
-1. **PHP 8.4 wajib, bukan 8.3.** `composer.lock` memakai Symfony 8.1 (`php >= 8.4.1`) yang sudah
-   memakai sintaks property hook, jadi build/runtime di PHP 8.3 gagal dengan
-   `syntax error, unexpected token "{"` di `vendor/symfony/http-foundation/Request.php:117`.
-   Pastikan build image PHP-nya 8.4 atau lebih baru (paket `php/php` di `wasmer.toml` sudah
-   diarahkan ke `^8.4`). Kalau registry Wasmer hanya menyediakan 8.3, deploy lewat build Docker
-   dengan base image PHP 8.4.
+1. **PHP 8.3 sudah cukup — dan itu memang disengaja.** `composer.json` memakai
+   `config.platform.php = 8.3.0`, jadi `composer.lock` dikunci ke Symfony 7.4 (bukan Symfony 8
+   yang mensyaratkan `php >= 8.4.1`). Ini membuat aplikasi jalan di PHP 8.3 maupun 8.4, termasuk
+   paket `php/php = "=8.3.4"` di Wasmer. Lihat bagian troubleshooting build di bawah untuk
+   detail kenapa hal ini penting.
 2. **`vendor/` harus ada di direktori yang dipaketkan.** Karena `[fs]` memetakan direktori
    lokal, jalankan `composer install --no-dev` sebelum `wasmer run .` / `wasmer deploy`.
    Kalau ternyata Wasmer menghormati `.gitignore` saat memaketkan sehingga `vendor` ikut
@@ -563,22 +562,44 @@ In Request.php line 117:
   syntax error, unexpected token "{", expecting "," or ";"
 ```
 
-Penyebabnya **versi PHP di build image**, bukan kode aplikasi: `composer.lock` memakai Symfony 8.1
-yang mensyaratkan `php >= 8.4.1` dan sudah memakai sintaks **property hook** (PHP 8.4):
+Ini **bukan** kode aplikasi, melainkan ketidakcocokan versi PHP: `composer.lock` sempat berisi
+**Symfony 8.1** yang mensyaratkan `php >= 8.4.1` dan memakai sintaks **property hook** (PHP 8.4):
 
 ```php
-// vendor/symfony/http-foundation/Request.php:117
+// vendor/symfony/http-foundation/Request.php:117 (Symfony 8.1)
 public ParameterBag $attributes {
     set { /* ... */ }
 }
 ```
 
-PHP 8.3 tidak bisa mem-parse blok `{` itu. Perbaikannya:
+PHP 8.3 tidak bisa mem-parse blok `{` itu. Lock tersebut ter-resolve di mesin yang memakai PHP
+8.4, padahal `composer.json` hanya menyatakan `php: ^8.3` — jadi host yang memakai 8.3 (termasuk
+paket PHP di Wasmer, dan runtime default Vercel) gagal saat build.
 
-- Pakai PHP **8.4+** di build image **dan** runtime.
-- `composer.json` sekarang mendeklarasikan `"php": "^8.4"` (dan `composer.lock` sudah disinkronkan),
-  jadi Composer menolak lebih awal dengan pesan yang jelas alih-alih error sintaks di vendor.
-- Cek cepat: `php -v` lalu `composer check-platform-reqs`.
+Perbaikannya **bukan** memaksa semua host ke PHP 8.4, tetapi membuat lock benar-benar kompatibel
+dengan syarat yang dideklarasikan:
+
+```json
+// composer.json
+"require": { "php": "^8.3" },
+"config": { "platform": { "php": "8.3.0" } }
+```
+
+```bash
+composer update "symfony/*" --with-all-dependencies
+# Symfony 8.1.x → 7.4.x (Symfony 7.4 hanya butuh PHP >= 8.2)
+```
+
+Cek cepat setelah perubahan:
+
+```bash
+php -v                                     # 8.3 atau 8.4, keduanya jalan
+composer check-platform-reqs               # semua "success"
+# tidak ada paket di composer.lock yang minta php >= 8.4
+```
+
+Dengan `config.platform.php` terpasang, Composer akan selalu memilih dependency yang kompatibel
+dengan 8.3 walau lock dibuat di mesin PHP 8.4, sehingga masalah ini tidak terulang.
 
 ### 2. `Please set up Boost with [php artisan boost:install] first.`
 

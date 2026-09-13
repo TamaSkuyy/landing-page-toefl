@@ -14,7 +14,7 @@ npm --version
 git --version
 ```
 
-Gunakan PHP 8.4+, Composer 2.x, dan Node.js 22.13+. PHP memerlukan extension Laravel umum seperti `pdo_mysql`, `mbstring`, `openssl`, `json`, dan `curl`.
+Gunakan PHP 8.3+, Composer 2.x, dan Node.js 22.13+. PHP memerlukan extension Laravel umum seperti `pdo_mysql`, `mbstring`, `openssl`, `json`, dan `curl`.
 
 Pilihan lingkungan local:
 

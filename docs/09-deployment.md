@@ -5,7 +5,7 @@ Deployment adalah proses memindahkan aplikasi ke server yang melayani pengguna n
 ## Arsitektur production minimum
 
 - Domain dengan HTTPS.
-- PHP 8.4+ dan extension Laravel.
+- PHP 8.3+ dan extension Laravel.
 - MySQL/MariaDB.
 - Composer 2.
 - Node.js 22.13+ hanya diperlukan pada tahap build.
