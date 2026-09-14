@@ -54,11 +54,33 @@ export DEBIAN_FRONTEND=noninteractive
 log "Memasang paket dasar (nginx, mysql, php, composer, node, certbot)"
 
 apt-get update -qq
-apt-get install -y -qq \
-    nginx mysql-server git unzip curl ca-certificates ufw \
-    certbot python3-certbot-nginx \
-    php-fpm php-cli php-mysql php-mbstring php-xml php-curl php-zip \
-    php-gd php-bcmath php-intl php-opcache >/dev/null
+
+BASE_PACKAGES=(
+    nginx mysql-server git unzip curl ca-certificates ufw
+    certbot python3-certbot-nginx
+)
+PHP_PACKAGES=(
+    php-fpm php-cli php-mysql php-mbstring php-xml
+    php-curl php-zip php-gd php-bcmath php-intl
+)
+
+# Nama paket PHP berbeda antar rilis Ubuntu (mis. meta-package php-opcache tidak ada di 26.04).
+# Karena itu: coba batch dulu, kalau ada yang tidak tersedia ulangi satu per satu supaya paket
+# yang tersedia tetap terpasang dan yang hilang hanya diperingatkan.
+if ! apt-get install -y -qq "${BASE_PACKAGES[@]}" "${PHP_PACKAGES[@]}" >/dev/null 2>&1; then
+    warn "Pemasangan batch tidak sepenuhnya berhasil — mencoba satu per satu."
+
+    for package in "${BASE_PACKAGES[@]}" "${PHP_PACKAGES[@]}"; do
+        apt-get install -y -qq "${package}" >/dev/null 2>&1 || warn "  tidak tersedia, dilewati: ${package}"
+    done
+fi
+
+for binary in nginx php mysql; do
+    if ! command -v "${binary}" >/dev/null 2>&1; then
+        echo "Paket wajib '${binary}' tidak terpasang. Perbaiki manual lalu jalankan skrip ini lagi." >&2
+        exit 1
+    fi
+done
 
 PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)"
 
@@ -68,6 +90,14 @@ if [ -z "${PHP_VER}" ]; then
 fi
 
 log "PHP terdeteksi: ${PHP_VER}"
+
+# opcache: nama meta-package "php-opcache" tidak ada di semua rilis (Ubuntu 26.04 hanya
+# menyediakan php<versi>-opcache). Dipasang per versi dan tidak fatal kalau tidak tersedia —
+# aplikasi tetap jalan, hanya tanpa percepatan bytecode.
+if ! php -m | grep -qi 'Zend OPcache'; then
+    apt-get install -y -qq "php${PHP_VER}-opcache" >/dev/null 2>&1 \
+        || warn "php${PHP_VER}-opcache tidak tersedia — dilewati (tanpa opcache)."
+fi
 
 # Composer resmi (versi apt sering tertinggal).
 if ! command -v composer >/dev/null 2>&1; then
@@ -88,6 +118,7 @@ printf '  php        : %s\n' "$(php -r 'echo PHP_VERSION;')"
 printf '  composer   : %s\n' "$(composer --version 2>/dev/null | cut -d' ' -f3)"
 printf '  node       : %s\n' "$(node -v)"
 printf '  mysql      : %s\n' "$(mysql --version | awk '{print $5}' | tr -d ',')"
+printf '  opcache    : %s\n' "$(php -m | grep -qi 'Zend OPcache' && echo aktif || echo 'tidak aktif (opsional)')"
 
 # ---------------------------------------------------------------------------
 # 2. Database + kredensial

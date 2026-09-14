@@ -154,6 +154,8 @@ Checklist lanjutan:
 | Gejala | Penyebab & solusi |
 | --- | --- |
 | **502 Bad Gateway** | Socket php-fpm tidak cocok. Cek `ls /run/php/`, samakan dengan `fastcgi_pass` di server block, lalu `sudo systemctl reload nginx`. |
+| **`Package 'php-opcache' has no installation candidate`** | Di Ubuntu 26.04 tidak ada meta-package `php-opcache`; yang tersedia hanya `php<versi>-opcache`. Skrip sudah menanganinya (opsional, dipasang per versi). Manual: `sudo apt-get install -y php$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')-opcache`. Kalau dilewati pun aplikasi tetap jalan. |
+| **Paket PHP lain "no installation candidate"** | Skrip mencoba ulang satu per satu dan hanya memperingatkan; paket wajib (`nginx`, `php`, `mysql`) dicek di akhir. Pasang manual paket yang dilaporkan lalu jalankan skrip lagi. |
 | **Subdomain tidak terbuka, IP jalan** | DNS belum propagasi atau `server_name` salah. Cek `dig +short toefl.domainmu.com` dan `nginx -T \| grep server_name`. |
 | **Certbot gagal (challenge)** | Pastikan record DNS hanya `toefl` → IP VPS (tanpa `www`), port 80 terbuka, dan proxy Cloudflare dimatikan sementara. |
 | **500 / blank** | Cek `storage/logs/laravel.log`. Umumnya izin: `chgrp -R www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache`. |
