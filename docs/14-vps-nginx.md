@@ -163,4 +163,46 @@ Checklist lanjutan:
 | **Halaman tampil tanpa CSS** | `APP_URL` salah atau `ASSET_URL` diubah dari `/`. Jalankan `php artisan optimize` setelah memperbaiki `.env`. |
 | **Video tidak bisa diputar** | Harus `Accept-Ranges: bytes` + respons `206`. Kalau lewat PHP terasa lambat, aktifkan blok `location /media/` opsional di `deploy/nginx-site.conf.template` lalu reload nginx. |
 | **Event analytics tidak masuk** | Pastikan `SESSION_DRIVER=database`, `CACHE_STORE=database`, migrasi sudah jalan, dan token CSRF di HTML sesuai sesi pengunjung (lihat catatan bug cache di [dokumen landing page](13-toefl-landing-page.md)). |
-| **`npm ci` kehabisan memori** | Tambah swap: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile && echo '/swapfile none swap sw 0 0' \| sudo tee -a /etc/fstab`. |
+| **`npm ci` kehabisan memori** | Tambahkan swap — lihat [Menambah swap](#menambah-swap) di bawah. |
+
+## Menambah swap
+
+`npm ci && npm run build` adalah langkah paling berat di VPS kecil (RAM 1 GB bisa kehabisan
+memori). **Cek dulu** — Ubuntu biasanya sudah menyiapkan `/swap.img`:
+
+```bash
+free -h
+swapon --show
+```
+
+Kalau `swapon --show` sudah menampilkan baris, tidak perlu apa-apa lagi. Kalau kosong:
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Verifikasi:
+
+```bash
+swapon --show      # harus ada /swapfile
+free -h            # kolom Swap: 2,0Gi
+```
+
+Kalau muncul `swapon: /swapfile: swapon failed: Operation not permitted`, VPS-nya berbasis
+container (OpenVZ/LXC) yang tidak bisa memakai swap. Bersihkan dan pakai jalur build di laptop:
+
+```bash
+# di VPS
+sudo swapoff /swapfile 2>/dev/null; sudo rm -f /swapfile
+
+# di laptop (Node >= 22.13)
+npm ci && npm run build
+scp -r public/build sekuyy@IP_VPS:/var/www/landing-page-toefl/public/
+
+# di VPS: deploy tanpa build
+bash deploy/deploy.sh --no-build
+```

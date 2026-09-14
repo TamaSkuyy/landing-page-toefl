@@ -55,7 +55,9 @@ server {
     }
 
     location ~ \.php$ {
-        try_files $uri =404;
+        # CATATAN: jangan menambahkan `try_files` di sini — snippets/fastcgi-php.conf
+        # bawaan Ubuntu sudah memuatnya, dan nginx menolak direktif try_files ganda
+        # dalam satu location ("try_files directive is duplicate").
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php__PHP_VER__-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
