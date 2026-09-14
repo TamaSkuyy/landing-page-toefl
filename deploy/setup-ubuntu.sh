@@ -17,6 +17,9 @@
 
 set -euo pipefail
 
+# Kalau ada perintah yang gagal, tampilkan barisnya supaya tidak "berhenti diam-diam".
+trap 'echo "[X] Gagal di baris ${LINENO}: ${BASH_COMMAND}" >&2' ERR
+
 APP_DIR="${APP_DIR:-/var/www/landing-page-toefl}"
 DB_NAME="${DB_NAME:-landing_page_toefl}"
 DB_USER="${DB_USER:-toefl_app}"
@@ -47,6 +50,14 @@ if ! grep -qi '^ID=ubuntu' /etc/os-release; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+
+# needrestart bisa menampilkan prompt interaktif setelah apt ("Which services should be
+# restarted?") yang membuat skrip tampak menggantung. Mode "a" = restart otomatis.
+export NEEDRESTART_MODE=a
+
+if [ -f /etc/needrestart/needrestart.conf ]; then
+    sed -i "s/^#\?\$nrconf{restart}.*/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf || true
+fi
 
 # ---------------------------------------------------------------------------
 # 1. Paket dasar
@@ -101,24 +112,37 @@ fi
 
 # Composer resmi (versi apt sering tertinggal).
 if ! command -v composer >/dev/null 2>&1; then
-    curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php
-    php /tmp/composer-setup.php --quiet --install-dir=/usr/local/bin --filename=composer
+    log "Memasang Composer"
+
+    if curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php \
+        && php /tmp/composer-setup.php --quiet --install-dir=/usr/local/bin --filename=composer; then
+        log "Composer terpasang."
+    else
+        warn "Composer gagal dipasang — pasang manual, lalu jalankan skrip ini lagi."
+    fi
+
     rm -f /tmp/composer-setup.php
 fi
 
 # Node 22 — package.json mensyaratkan >= 22.13.
-if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
-    apt-get install -y -qq nodejs >/dev/null
+if ! command -v node >/dev/null 2>&1 || [ "$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)" -lt 22 ]; then
+    log "Memasang Node.js 22 (dipakai saat build aset)"
+
+    if curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1 \
+        && apt-get install -y -qq nodejs >/dev/null; then
+        log "Node.js terpasang: $(node -v)"
+    else
+        warn "Node.js gagal dipasang — build aset harus dijalankan manual di laptop lalu diunggah."
+    fi
 fi
 
 log "Versi terpasang"
 printf '  nginx      : %s\n' "$(nginx -v 2>&1 | cut -d/ -f2)"
 printf '  php        : %s\n' "$(php -r 'echo PHP_VERSION;')"
-printf '  composer   : %s\n' "$(composer --version 2>/dev/null | cut -d' ' -f3)"
-printf '  node       : %s\n' "$(node -v)"
-printf '  mysql      : %s\n' "$(mysql --version | awk '{print $5}' | tr -d ',')"
-printf '  opcache    : %s\n' "$(php -m | grep -qi 'Zend OPcache' && echo aktif || echo 'tidak aktif (opsional)')"
+printf '  composer   : %s\n' "$(composer --version 2>/dev/null | cut -d' ' -f3 || echo 'TIDAK TERPASANG')"
+printf '  node       : %s\n' "$(node -v 2>/dev/null || echo 'TIDAK TERPASANG')"
+printf '  mysql      : %s\n' "$(mysql --version 2>/dev/null | awk '{print $5}' | tr -d ',' || echo 'TIDAK TERPASANG')"
+printf '  opcache    : %s\n' "$(php -m 2>/dev/null | grep -qi 'Zend OPcache' && echo aktif || echo 'tidak aktif (opsional)')"
 
 # ---------------------------------------------------------------------------
 # 2. Database + kredensial
