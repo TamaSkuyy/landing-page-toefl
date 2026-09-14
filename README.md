@@ -254,5 +254,6 @@ Kemudian ikuti [Checklist QA](docs/11-qa-checklist.md) pada staging. **Staging**
 12. [Checklist QA](docs/11-qa-checklist.md)
 13. [Referensi Environment](docs/12-environment-reference.md)
 14. [Landing Page TOEFL ITP Full Bright](docs/13-toefl-landing-page.md) — contoh wiring desain klien ke boilerplate
+15. [Deployment VPS Ubuntu (nginx + PHP-FPM + MySQL)](docs/14-vps-nginx.md) — langkah konkret + skrip di `deploy/`
 
 Jika baru pertama menggunakan repository ini, baca dokumen sesuai urutan di atas. Jika mengalami error, mulai dari [Troubleshooting](docs/10-troubleshooting.md).
